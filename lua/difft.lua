@@ -3,7 +3,7 @@ local parser = require('difft.parser')
 local M = {}
 
 local defaults = {
-    display = 'side-by-side-show-both',
+    display = 'side-by-side',
 }
 
 local function blank_virt_lines(count)

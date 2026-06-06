@@ -1,0 +1,5 @@
+= difft.nvim
+
+== Features
+
+* Sync cursor with difftastic to track diffs for what you're looking at

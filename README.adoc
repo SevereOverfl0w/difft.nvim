@@ -3,3 +3,22 @@
 == Features
 
 * Sync cursor with difftastic to track diffs for what you're looking at
+
+== Usage
+
+`:Difft` runs the `difft` command with the path args provided, `-current` is used to determine which side to sync your
+buffer with.
+
+[source,vim]
+----
+:e /tmp/latest.lua
+:Difft -current new /tmp/oldest.lua /tmp/latest.lua
+----
+
+[source,vim]
+----
+:e /tmp/oldest.lua
+:Difft -current old /tmp/oldest.lua /tmp/latest.lua
+----
+
+You may enable `:diffthis` on buffers to view a traditional diff alongside it, too.

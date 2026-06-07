@@ -103,13 +103,23 @@ end
 ---@param raw_opts difft.OpenOpts
 ---@return difft.OpenResult
 function M.open(raw_opts)
-    local win = vim.fn.win_getid()
+    local current_win = vim.fn.win_getid()
+    local win = current_win
+    local difft_win = nil
+    local source_win = vim.w[current_win].difft_source_win
+    if type(source_win) == 'number' and vim.api.nvim_win_is_valid(source_win) and vim.w[source_win].difft_win == current_win then
+        win = source_win
+        difft_win = current_win
+    else
+        vim.w[current_win].difft_source_win = nil
+    end
+
     local source_opts = vim.tbl_extend('force', {}, defaults, raw_opts or {})
     validate_context(source_opts, win)
     local opts = sources.prepare_opts(source_opts, win)
     local group_id = vim.api.nvim_create_augroup('difft.group.' .. win, {clear = true})
     local ns = vim.api.nvim_create_namespace('difft.padding.' .. win)
-    local difft_win = vim.w[win].difft_win
+    difft_win = difft_win or vim.w[win].difft_win
     if type(difft_win) ~= 'number' or not vim.api.nvim_win_is_valid(difft_win) or vim.w[difft_win].difft_source_win ~= win then
         vim.w[win].difft_win = nil
         difft_win = nil

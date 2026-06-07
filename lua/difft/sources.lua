@@ -128,6 +128,25 @@ local function validate_source(source, name)
     error('difft: ' .. name .. ' is required')
 end
 
+local function diff_windows(win)
+    if not vim.wo[win].diff then return end
+
+    local wins = vim.tbl_filter(function(candidate)
+        return vim.wo[candidate].diff
+    end, vim.api.nvim_tabpage_list_wins(vim.api.nvim_win_get_tabpage(win)))
+    if #wins ~= 2 then return end
+
+    local other = wins[1] == win and wins[2] or wins[1]
+    if other == win then return end
+
+    local win_col = vim.api.nvim_win_get_position(win)[2]
+    local other_col = vim.api.nvim_win_get_position(other)[2]
+    if win_col < other_col then
+        return win, other, 'old'
+    end
+    return other, win, 'new'
+end
+
 ---@class difft.PreparedOpts : difft.Opts
 ---@field cleanup fun(self: difft.PreparedOpts)
 
@@ -153,20 +172,29 @@ function M.prepare_opts(opts, win)
 
     local ok, err = pcall(function()
         if not opts.old_path and not opts.new_path then
-            local bufnr = vim.api.nvim_win_get_buf(win)
-            local path = real_path(bufnr)
-            if path == '' then
-                error('difft: current buffer has no path')
-            end
-
-            if vim.fn.exists('*gitgutter#git') == 1 then
-                if vim.g.gitgutter_diff_relative_to == 'working_tree' then
-                    opts.old_path = path
-                else
-                    opts.old_path = gitgutter_base_to_disk(bufnr, path, temp_paths)
+            local old_win, new_win, current = diff_windows(win)
+            if old_win then
+                opts.old_path = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(old_win))
+                opts.new_path = vim.api.nvim_buf_get_name(vim.api.nvim_win_get_buf(new_win))
+                opts.current = current
+            else
+                local bufnr = vim.api.nvim_win_get_buf(win)
+                local path = real_path(bufnr)
+                if path == '' then
+                    error('difft: current buffer has no path')
                 end
+
+                if vim.fn.exists('*gitgutter#git') == 1 then
+                    if vim.g.gitgutter_diff_relative_to == 'working_tree' then
+                        opts.old_path = path
+                    else
+                        opts.old_path = gitgutter_base_to_disk(bufnr, path, temp_paths)
+                    end
+                else
+                    opts.old_path = path
+                end
+                opts.new_path = path
             end
-            opts.new_path = path
         end
 
         local old_path = opts.old_path

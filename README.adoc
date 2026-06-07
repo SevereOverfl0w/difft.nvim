@@ -11,6 +11,16 @@ buffer with.
 
 With no path args, `:Difft` diffs the current buffer against the same base used by vim-gitgutter.
 
+With no path args from one of two `:diffthis` windows, `:Difft` diffs left as old and right as new.
+
+[source,vim]
+----
+:diffthis
+:wincmd w
+:diffthis
+:Difft
+----
+
 [source,vim]
 ----
 :e /tmp/latest.lua

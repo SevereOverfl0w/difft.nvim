@@ -109,9 +109,22 @@ function M.open(raw_opts)
     local opts = sources.prepare_opts(source_opts, win)
     local group_id = vim.api.nvim_create_augroup('difft.group.' .. win, {clear = true})
     local ns = vim.api.nvim_create_namespace('difft.padding.' .. win)
-    -- TODO: locate existing difft window and close/replace it.
+    local difft_win = vim.w[win].difft_win
+    if type(difft_win) ~= 'number' or not vim.api.nvim_win_is_valid(difft_win) or vim.w[difft_win].difft_source_win ~= win then
+        vim.w[win].difft_win = nil
+        difft_win = nil
+    end
+
     local difft_buf = vim.api.nvim_create_buf(false, true)
-    local difft_win = vim.api.nvim_open_win(difft_buf, false, {split = 'above', win = -1})
+    if difft_win then
+        local old_difft_buf = vim.api.nvim_win_get_buf(difft_win)
+        vim.api.nvim_win_set_buf(difft_win, difft_buf)
+        pcall(vim.api.nvim_buf_delete, old_difft_buf, {force = true})
+    else
+        difft_win = vim.api.nvim_open_win(difft_buf, false, {split = 'above', win = -1})
+    end
+    vim.w[win].difft_win = difft_win
+    vim.w[difft_win].difft_source_win = win
     local syncing = false
 
     vim.b[difft_buf].difft_lnum_maps = {old = {}, new = {}, rows = {}, lnums = {old = {}, new = {}}}
@@ -127,6 +140,12 @@ function M.open(raw_opts)
     end
 
     local function cleanup()
+        if vim.api.nvim_win_is_valid(win) and vim.w[win].difft_win == difft_win then
+            vim.w[win].difft_win = nil
+        end
+        if vim.api.nvim_win_is_valid(difft_win) and vim.w[difft_win].difft_source_win == win then
+            vim.w[difft_win].difft_source_win = nil
+        end
         pcall(vim.api.nvim_del_augroup_by_id, group_id)
         pcall(vim.api.nvim_win_close, difft_win, true)
     end

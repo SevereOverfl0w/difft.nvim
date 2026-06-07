@@ -28,6 +28,22 @@ local defaults = {
     display = 'side-by-side',
 }
 
+local function line_after_hunk_header(row)
+    if vim.fn.getline(row + 1):match('^%s*%-%s+%S+%s*$') then
+        return row + 2
+    end
+
+    return row + 1
+end
+
+local function find_hunk(direction)
+    local flags = direction > 0 and 'W' or 'bW'
+    local row = vim.fn.search([[\s---\s\+\d\+/\d\+\s--]], flags)
+    if row == 0 then return nil end
+
+    return math.min(line_after_hunk_header(row), vim.api.nvim_buf_line_count(0))
+end
+
 local sources = require('difft.sources')
 
 local function blank_virt_lines(count)
@@ -138,6 +154,8 @@ function M.open(raw_opts)
     local syncing = false
 
     vim.b[difft_buf].difft_lnum_maps = {old = {}, new = {}, rows = {}, lnums = {old = {}, new = {}}}
+    vim.b[difft_buf].difft_display = opts.display
+    vim.bo[difft_buf].filetype = 'difftastic'
     vim.wo[difft_win].diff = false
     vim.wo[difft_win].scrollbind = false
     vim.wo[difft_win].cursorbind = false
@@ -326,6 +344,17 @@ function M.open(raw_opts)
         difft_buf = difft_buf,
         group_id = group_id,
     }
+end
+
+---@param direction integer
+function M.jump_hunk(direction)
+    local target = find_hunk(direction)
+
+    if target then
+        vim.api.nvim_win_set_cursor(0, {target, 0})
+    else
+        vim.notify('difft: no hunk', vim.log.levels.INFO)
+    end
 end
 
 return M

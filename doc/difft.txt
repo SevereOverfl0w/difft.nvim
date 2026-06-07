@@ -1,0 +1,72 @@
+*difft.txt*  Difftastic companion
+
+Author:  SevereOverfl0w
+Repo:    https://github.com/SevereOverfl0w/difft.nvim
+
+INTRODUCTION                                    *difft*
+
+Difft.nvim opens difftastic output in a split and keeps it synced with the
+source window.  It can diff two paths, two |:diffthis| windows, or the current
+buffer against the same base used by vim-gitgutter.
+
+Difftastic's `difft` executable must be on $PATH.
+
+COMMANDS                                        *difft-commands*
+
+                                                *:Difft*
+:Difft [-current {side}] [-display {display}] [OLD-PATH NEW-PATH]
+                        Run `difft` and open the result above the current
+                        window.  The source and difftastic windows track each
+                        other by cursor position.
+
+                        With OLD-PATH and NEW-PATH, diff those paths.
+
+                        With no paths from one of exactly two |:diffthis|
+                        windows, diff the left window as old and the right
+                        window as new.
+
+                        With no paths otherwise, diff the current buffer
+                        against itself, or against the vim-gitgutter base when
+                        vim-gitgutter is available.  Thus |g:gitgutter_diff_base|
+                        and related vim-gitgutter settings are honored.
+
+                        Re-running :Difft for the same source window replaces
+                        the previous difftastic buffer.  Closing either window
+                        closes the pair.
+
+                                                *difft--current*
+-current old            Treat the current/source buffer as the old side when
+-current new            syncing cursor positions.  Default: new.
+
+                                                *difft--display*
+-display {display}      Pass {display} to `difft --display`.  Supported values:
+                        side-by-side, side-by-side-show-both, inline.
+                        Default: side-by-side.
+
+MAPS                                            *difft-maps*
+
+These maps are defined in difftastic buffers.
+
+                                                *difft-]h*
+]h                      Jump to next hunk.
+
+                                                *difft-[h*
+[h                      Jump to previous hunk.
+
+EXAMPLES                                        *difft-examples*
+>
+        :Difft old.lua new.lua
+        :Difft -current old old.lua new.lua
+        :Difft -display inline old.lua new.lua
+        :let g:gitgutter_diff_base = 'HEAD^^'
+        :Difft
+<
+Diff two windows:
+>
+        :diffthis
+        :wincmd w
+        :diffthis
+        :Difft
+<
+
+ vim:tw=78:et:ft=help:norl:

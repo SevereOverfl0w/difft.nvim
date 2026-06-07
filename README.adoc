@@ -4,6 +4,7 @@
 
 * Sync cursor with difftastic to track diffs for what you're looking at
 * `]h` and `[h` in a difftastic output jumps between hunks
+* gitgutter and fugitive integration
 
 == Usage
 

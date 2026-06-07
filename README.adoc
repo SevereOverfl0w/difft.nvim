@@ -9,6 +9,8 @@
 `:Difft` runs the `difft` command with the path args provided, `-current` is used to determine which side to sync your
 buffer with.
 
+With no path args, `:Difft` diffs the current buffer against the same base used by vim-gitgutter.
+
 [source,vim]
 ----
 :e /tmp/latest.lua
@@ -19,6 +21,12 @@ buffer with.
 ----
 :e /tmp/oldest.lua
 :Difft -current old /tmp/oldest.lua /tmp/latest.lua
+----
+
+[source,vim]
+----
+:let g:gitgutter_diff_base='HEAD^^'
+:Difft
 ----
 
 You may enable `:diffthis` on buffers to view a traditional diff alongside it, too.

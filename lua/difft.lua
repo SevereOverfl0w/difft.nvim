@@ -2,9 +2,33 @@ local parser = require('difft.parser')
 
 local M = {}
 
+---@alias difft.CurrentSide 'old'|'new'
+---@alias difft.Display 'side-by-side'|'side-by-side-show-both'|'inline'
+
+---@class difft.OpenOpts
+---@field old_path? string
+---@field new_path? string
+---@field current? difft.CurrentSide
+---@field display? difft.Display
+
+---@class difft.Opts
+---@field old_path string
+---@field new_path string
+---@field current difft.CurrentSide
+---@field display difft.Display
+
+---@class difft.OpenResult
+---@field win integer
+---@field difft_win integer
+---@field difft_buf integer
+---@field group_id integer
+
 local defaults = {
+    current = 'new',
     display = 'side-by-side',
 }
+
+local sources = require('difft.sources')
 
 local function blank_virt_lines(count)
     local lines = {}
@@ -14,25 +38,16 @@ local function blank_virt_lines(count)
     return lines
 end
 
-local function validate_opts(opts)
-    opts = vim.tbl_extend('force', defaults, opts or {})
-
-    if type(opts.old_path) ~= 'string' or opts.old_path == '' then
-        error('difft: old_path is required')
-    end
-    if type(opts.new_path) ~= 'string' or opts.new_path == '' then
-        error('difft: new_path is required')
-    end
+---@param opts difft.OpenOpts
+---@param win integer
+local function validate_context(opts, win)
     if opts.current ~= 'old' and opts.current ~= 'new' then
         error("difft: current must be 'old' or 'new'")
     end
 
-    opts.win = opts.win or vim.fn.win_getid()
-    if not vim.api.nvim_win_is_valid(opts.win) then
+    if not vim.api.nvim_win_is_valid(win) then
         error('difft: win must be valid')
     end
-
-    return opts
 end
 
 local function nearest_source_lnum(lnum_maps, side, srclnum)
@@ -85,13 +100,15 @@ local function nearest_difft_lnum(lnum_maps, side, row)
     return lnum
 end
 
+---@param raw_opts difft.OpenOpts
+---@return difft.OpenResult
 function M.open(raw_opts)
-    local opts = validate_opts(raw_opts)
-    local group_id = vim.api.nvim_create_augroup('difft.group.' .. opts.win, {clear = true})
-    local ns = vim.api.nvim_create_namespace('difft.padding.' .. opts.win)
-    local win = opts.win
-    local current = opts.current
-    local difft_display = opts.display
+    local win = vim.fn.win_getid()
+    local source_opts = vim.tbl_extend('force', {}, defaults, raw_opts or {})
+    validate_context(source_opts, win)
+    local opts = sources.prepare_opts(source_opts, win)
+    local group_id = vim.api.nvim_create_augroup('difft.group.' .. win, {clear = true})
+    local ns = vim.api.nvim_create_namespace('difft.padding.' .. win)
     -- TODO: locate existing difft window and close/replace it.
     local difft_buf = vim.api.nvim_create_buf(false, true)
     local difft_win = vim.api.nvim_open_win(difft_buf, false, {split = 'above', win = -1})
@@ -111,7 +128,7 @@ function M.open(raw_opts)
 
     local function cleanup()
         pcall(vim.api.nvim_del_augroup_by_id, group_id)
-        vim.api.nvim_win_close(difft_win, true)
+        pcall(vim.api.nvim_win_close, difft_win, true)
     end
 
     local function add_padding_extmarks()
@@ -132,11 +149,11 @@ function M.open(raw_opts)
         })
     end
 
-    vim.api.nvim_win_call(difft_win, function()
-        vim.fn.jobstart({
+    local job_ok, job_id = pcall(vim.api.nvim_win_call, difft_win, function()
+        return vim.fn.jobstart({
             'difft',
             '--color', 'always',
-            '--display', difft_display,
+            '--display', opts.display,
             '--width', tostring(vim.api.nvim_win_get_width(difft_win)),
             opts.old_path,
             opts.new_path,
@@ -144,15 +161,26 @@ function M.open(raw_opts)
             term = true,
             on_exit = function()
                 vim.schedule(function()
+                    opts:cleanup()
                     if not vim.api.nvim_buf_is_valid(difft_buf) then return end
 
                     local lines = vim.api.nvim_buf_get_lines(difft_buf, 0, -1, false)
-                    vim.b[difft_buf].difft_lnum_maps = parser.lnum_maps(lines, difft_display)
+                    vim.b[difft_buf].difft_lnum_maps = parser.lnum_maps(lines, opts.display)
                     add_padding_extmarks()
                 end)
             end
         })
     end)
+    if not job_ok then
+        opts:cleanup()
+        cleanup()
+        error(job_id, 0)
+    end
+    if job_id <= 0 then
+        opts:cleanup()
+        cleanup()
+        error('difft: failed to start difft')
+    end
 
     local function sync_scroll(srcwin, dstwin)
         if not vim.api.nvim_win_is_valid(srcwin) or not vim.api.nvim_win_is_valid(dstwin) then return end
@@ -190,7 +218,7 @@ function M.open(raw_opts)
 
     local function sync_to_difft(srcwin)
         local srclnum = vim.api.nvim_win_get_cursor(srcwin)[1]
-        local lnum = nearest_source_lnum(vim.b[difft_buf].difft_lnum_maps, current, srclnum)
+        local lnum = nearest_source_lnum(vim.b[difft_buf].difft_lnum_maps, opts.current, srclnum)
         if type(lnum) ~= 'number' then return end
         if lnum < 1 or lnum > vim.api.nvim_buf_line_count(difft_buf) then return end
 
@@ -200,7 +228,7 @@ function M.open(raw_opts)
 
     local function sync_to_source(srcwin)
         local row = vim.api.nvim_win_get_cursor(srcwin)[1]
-        local lnum = nearest_difft_lnum(vim.b[difft_buf].difft_lnum_maps, current, row)
+        local lnum = nearest_difft_lnum(vim.b[difft_buf].difft_lnum_maps, opts.current, row)
         if type(lnum) ~= 'number' then return end
         if lnum < 1 or lnum > vim.api.nvim_buf_line_count(vim.api.nvim_win_get_buf(win)) then return end
 

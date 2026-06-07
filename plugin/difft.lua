@@ -1,4 +1,17 @@
+---@class difft.NoPathCommandOpts: difft.OpenOpts
+---@field old_path? nil
+---@field new_path? nil
+
+---@class difft.PathCommandOpts: difft.OpenOpts
+---@field old_path string
+---@field new_path string
+
+---@alias difft.CommandOpts difft.NoPathCommandOpts|difft.PathCommandOpts
+
+---@param args string[]
+---@return difft.CommandOpts
 local function parse_args(args)
+    ---@type table<string, any>
     local opts = {}
     local paths = {}
     local i = 1
@@ -23,12 +36,18 @@ local function parse_args(args)
         i = i + 1
     end
 
-    if #paths ~= 2 then
+    if #paths ~= 0 and #paths ~= 2 then
         error('difft: expected OLD-PATH and NEW-PATH')
+    end
+
+    if #paths == 0 then
+        ---@cast opts difft.NoPathCommandOpts
+        return opts
     end
 
     opts.old_path = vim.fn.expand(paths[1])
     opts.new_path = vim.fn.expand(paths[2])
+    ---@cast opts difft.PathCommandOpts
     return opts
 end
 
@@ -60,7 +79,7 @@ end
 vim.api.nvim_create_user_command('Difft', function(command)
     require('difft').open(parse_args(command.fargs))
 end, {
-    nargs = '+',
+    nargs = '*',
     complete = complete,
-    desc = 'Open difftastic output synced with current window. Usage: Difft -current old|new [-display DISPLAY] OLD-PATH NEW-PATH',
+    desc = 'Open difftastic output synced with current window. Usage: Difft [-current old|new] [-display DISPLAY] [OLD-PATH NEW-PATH]',
 })

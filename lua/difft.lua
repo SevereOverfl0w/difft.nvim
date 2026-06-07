@@ -178,39 +178,6 @@ function M.open(raw_opts)
         })
     end
 
-    local job_ok, job_id = pcall(vim.api.nvim_win_call, difft_win, function()
-        return vim.fn.jobstart({
-            'difft',
-            '--color', 'always',
-            '--display', opts.display,
-            '--width', tostring(vim.api.nvim_win_get_width(difft_win)),
-            opts.old_path,
-            opts.new_path,
-        }, {
-            term = true,
-            on_exit = function()
-                vim.schedule(function()
-                    opts:cleanup()
-                    if not vim.api.nvim_buf_is_valid(difft_buf) then return end
-
-                    local lines = vim.api.nvim_buf_get_lines(difft_buf, 0, -1, false)
-                    vim.b[difft_buf].difft_lnum_maps = parser.lnum_maps(lines, opts.display)
-                    add_padding_extmarks()
-                end)
-            end
-        })
-    end)
-    if not job_ok then
-        opts:cleanup()
-        cleanup()
-        error(job_id, 0)
-    end
-    if job_id <= 0 then
-        opts:cleanup()
-        cleanup()
-        error('difft: failed to start difft')
-    end
-
     local function sync_scroll(srcwin, dstwin)
         if not vim.api.nvim_win_is_valid(srcwin) or not vim.api.nvim_win_is_valid(dstwin) then return end
 
@@ -264,6 +231,44 @@ function M.open(raw_opts)
         vim.api.nvim_win_set_cursor(win, {lnum, 0})
     end
 
+    local job_ok, job_id = pcall(vim.api.nvim_win_call, difft_win, function()
+        return vim.fn.jobstart({
+            'difft',
+            '--color', 'always',
+            '--display', opts.display,
+            '--width', tostring(vim.api.nvim_win_get_width(difft_win)),
+            opts.old_path,
+            opts.new_path,
+        }, {
+            term = true,
+            on_exit = function()
+                vim.schedule(function()
+                    opts:cleanup()
+                    if not vim.api.nvim_buf_is_valid(difft_buf) then return end
+
+                    local lines = vim.api.nvim_buf_get_lines(difft_buf, 0, -1, false)
+                    vim.b[difft_buf].difft_lnum_maps = parser.lnum_maps(lines, opts.display)
+                    add_padding_extmarks()
+                    if valid_windows() then
+                        with_sync_guard(function()
+                            sync_to_difft(win)
+                        end)
+                    end
+                end)
+            end
+        })
+    end)
+    if not job_ok then
+        opts:cleanup()
+        cleanup()
+        error(job_id, 0)
+    end
+    if job_id <= 0 then
+        opts:cleanup()
+        cleanup()
+        error('difft: failed to start difft')
+    end
+
     vim.api.nvim_create_autocmd({'CursorMoved', 'CursorMovedI'}, {
         group = group_id,
         callback = function()
@@ -314,10 +319,6 @@ function M.open(raw_opts)
         buffer = difft_buf,
         callback = cleanup,
     })
-
-    with_sync_guard(function()
-        sync_to_difft(win)
-    end)
 
     return {
         win = win,

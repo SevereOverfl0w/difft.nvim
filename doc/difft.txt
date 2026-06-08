@@ -47,11 +47,11 @@ MAPS                                            *difft-maps*
 
 These maps are defined in difftastic buffers.
 
-                                                *difft-]h*
-]h                      Jump to next hunk.
+                                                *difft-]c*
+]c                      Jump to next hunk.
 
-                                                *difft-[h*
-[h                      Jump to previous hunk.
+                                                *difft-[c*
+[c                      Jump to previous hunk.
 
 EXAMPLES                                        *difft-examples*
 >

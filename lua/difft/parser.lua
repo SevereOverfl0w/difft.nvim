@@ -24,7 +24,9 @@ local function add_row(map, row, old_lnum, new_lnum)
 end
 
 local function parse_inline(line)
-    return tonumber(line:match('^(%d+)')), tonumber(line:match('^%s+(%d+)'))
+    local old = line:match('^(%d+)%s') or line:match('^(%d+)$')
+    local new = line:match('^%s+(%d+)%s') or line:match('^%s+(%d+)$')
+    return tonumber(old), tonumber(new)
 end
 
 local function inline_lnum_maps(lines)
@@ -38,7 +40,7 @@ end
 --- Column-alignment tokens in a side-by-side row, each tagged with the display column it ends at.
 local function column_tokens(line)
     local tokens = {}
-    for padding, token_start, token in line:gmatch('(%s+)()([%d%.]+)%s?') do
+    for padding, token_start, token in line:gmatch('(%s+)()([%d%.]+)') do
         if token:match('^%.+$') or token:match('^%d+$') then
             local col_end = vim.fn.strdisplaywidth(line:sub(1, token_start - 1)) + #token
             tokens[#tokens + 1] = {value = token, col_end = col_end, padding = #padding}
@@ -52,7 +54,8 @@ local function is_side_by_side_row(line)
 end
 
 --- Finds right-side lnum column in a side-by-side hunk. Difftastic has no separator, so infer column by scanning all
---- column-like tokens and picking one present on every hunk row. That rules out most random integers in code text.
+--- column-like tokens and picking one present on every hunk row whose numbers increment by one. That rules out
+--- random integers in code text, including right-aligned numeric columns in tabular data.
 ---@param map difft.LnumMap
 ---@param lines string[]
 ---@param first integer
@@ -63,10 +66,17 @@ local function add_side_by_side_hunk(map, lines, first, last)
     for row = first, last do
         local row_lnums = {}
         for _, token in ipairs(column_tokens(lines[row])) do
-            row_lnums[token.col_end] = tonumber(token.value)
-            local column = columns[token.col_end] or {count = 0, padding = 0}
+            local value = tonumber(token.value)
+            row_lnums[token.col_end] = value
+            local column = columns[token.col_end] or {count = 0, padding = 0, consecutive = true}
             column.count = column.count + 1
             column.padding = math.max(column.padding, token.padding)
+            if value then
+                if column.prev and value ~= column.prev + 1 then
+                    column.consecutive = false
+                end
+                column.prev = value
+            end
             columns[token.col_end] = column
         end
         lnum_at[row] = row_lnums
@@ -76,7 +86,7 @@ local function add_side_by_side_hunk(map, lines, first, last)
     local best_padding = 0
     local hunk_size = last - first + 1
     for col_end, column in pairs(columns) do
-        if column.count == hunk_size and (column.padding > best_padding
+        if column.count == hunk_size and column.consecutive and (column.padding > best_padding
             or column.padding == best_padding and (not new_col or col_end > new_col))
         then
             new_col = col_end

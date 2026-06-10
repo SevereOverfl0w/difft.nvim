@@ -346,6 +346,27 @@ function M.open(raw_opts)
     }
 end
 
+---Closes the difftastic window paired with the current window, whether the
+---current window is the source or the difftastic window itself.  Returns true
+---when a window was closed, false when no pair exists.
+---@return boolean
+function M.close()
+    local current_win = vim.fn.win_getid()
+    local win = current_win
+    local source_win = vim.w[current_win].difft_source_win
+    if type(source_win) == 'number' and vim.api.nvim_win_is_valid(source_win) and vim.w[source_win].difft_win == current_win then
+        win = source_win
+    end
+
+    local difft_win = vim.w[win].difft_win
+    if type(difft_win) ~= 'number' or not vim.api.nvim_win_is_valid(difft_win) or vim.w[difft_win].difft_source_win ~= win then
+        return false
+    end
+
+    vim.api.nvim_win_close(difft_win, true)
+    return true
+end
+
 ---@param direction integer
 function M.jump_hunk(direction)
     local target = find_hunk(direction)

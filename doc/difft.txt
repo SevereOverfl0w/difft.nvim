@@ -34,6 +34,11 @@ COMMANDS                                        *difft-commands*
                         the previous difftastic buffer.  Closing either window
                         closes the pair.
 
+                                                *:DifftClose*
+:DifftClose             Close the difftastic window paired with the current
+                        window.  Works from either side of the pair.  Does
+                        nothing when there is no pair, like |:cclose|.
+
                                                 *difft--current*
 -current old            Treat the current/source buffer as the old side when
 -current new            syncing cursor positions.  Default: new.

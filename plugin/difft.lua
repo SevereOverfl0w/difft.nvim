@@ -83,3 +83,9 @@ end, {
     complete = complete,
     desc = 'Open difftastic output synced with current window. Usage: Difft [-current old|new] [-display DISPLAY] [OLD-PATH NEW-PATH]',
 })
+
+vim.api.nvim_create_user_command('DifftClose', function()
+    require('difft').close()
+end, {
+    desc = 'Close the difftastic window paired with the current window',
+})

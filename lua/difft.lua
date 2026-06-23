@@ -151,6 +151,7 @@ function M.open(raw_opts)
     end
     vim.w[win].difft_win = difft_win
     vim.w[difft_win].difft_source_win = win
+    local source_buf = vim.api.nvim_win_get_buf(win)
     local syncing = false
 
     vim.b[difft_buf].difft_lnum_maps = {old = {}, new = {}, rows = {}, lnums = {old = {}, new = {}}}
@@ -320,6 +321,16 @@ function M.open(raw_opts)
                 sync_to_difft(win)
             end)
         end
+    })
+
+    vim.api.nvim_create_autocmd('BufWinEnter', {
+        group = group_id,
+        callback = function()
+            if not vim.api.nvim_win_is_valid(win) then return end
+            if vim.api.nvim_win_get_buf(win) ~= source_buf then
+                cleanup()
+            end
+        end,
     })
 
     vim.api.nvim_create_autocmd('WinClosed', {

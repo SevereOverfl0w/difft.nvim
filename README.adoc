@@ -5,7 +5,7 @@ image::https://asciinema.org/a/1262712.svg[asciicast,link=https://asciinema.org/
 == Features
 
 * Sync cursor with difftastic to track diffs for what you're looking at
-* `]h` and `[h` in a difftastic output jumps between hunks
+* `]c` and `[c` in a difftastic output jumps between hunks
 * gitgutter and fugitive integration
 
 == Usage

@@ -1,5 +1,7 @@
 = difft.nvim
 
+image::https://asciinema.org/a/1262712.svg[asciicast,link=https://asciinema.org/a/1262712]
+
 == Features
 
 * Sync cursor with difftastic to track diffs for what you're looking at
